@@ -152,10 +152,16 @@ export async function getUsers(params: {
   const { query, role, status, provider, dateFrom, dateTo, page = 1, perPage = 20, sortBy, sortOrder } = params;
   const offset = (page - 1) * perPage;
 
-  const conditions = [ne(users.status, 'deleted')];
+  const conditions = [];
+  if (status === 'deleted') {
+    conditions.push(eq(users.status, 'deleted'));
+  } else if (status) {
+    conditions.push(eq(users.status, status as 'active' | 'banned'));
+  } else {
+    conditions.push(ne(users.status, 'deleted'));
+  }
   if (query) conditions.push(or(ilike(users.name, `%${query}%`), ilike(users.email, `%${query}%`))!);
   if (role) conditions.push(eq(users.role, role as 'user' | 'admin'));
-  if (status) conditions.push(eq(users.status, status as 'active' | 'banned'));
   if (provider) conditions.push(eq(users.provider, provider));
   if (dateFrom) conditions.push(sql`${users.createdAt} >= ${new Date(dateFrom)}`);
   if (dateTo) conditions.push(sql`${users.createdAt} < ${new Date(new Date(dateTo).getTime() + 86400000)}`);

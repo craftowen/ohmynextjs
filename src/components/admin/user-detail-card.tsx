@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Pencil, Check, X } from 'lucide-react';
-import { updateUserRole, updateUserStatus, updateUserProfile } from '@/lib/admin/actions';
+import { updateUserRole, updateUserStatus, updateUserProfile, softDeleteUser, restoreUser } from '@/lib/admin/actions';
 import { toast } from 'sonner';
 import { ConfirmDialog } from './confirm-dialog';
 
@@ -221,6 +221,54 @@ export function UserDetailCard({
             <option value="active">active</option>
             <option value="banned">banned</option>
           </select>
+
+          {!isSelf && (
+            <div className="ml-auto">
+              {user.status === 'deleted' ? (
+                <button
+                  onClick={() => {
+                    setDialog({
+                      open: true,
+                      title: '유저 복구',
+                      description: `${user.email}을 복구하시겠습니까?`,
+                      action: async () => {
+                        startTransition(async () => {
+                          const result = await restoreUser(user.id);
+                          if (result.success) toast.success('유저가 복구되었습니다.');
+                          else toast.error(result.error);
+                        });
+                      },
+                    });
+                  }}
+                  disabled={isPending}
+                  className="rounded-md bg-green-500/10 px-3 py-1 text-[12px] font-medium text-green-600 hover:bg-green-500/20 disabled:opacity-50"
+                >
+                  복구
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setDialog({
+                      open: true,
+                      title: '유저 삭제',
+                      description: `${user.email}을 삭제하시겠습니까? (복구 가능)`,
+                      action: async () => {
+                        startTransition(async () => {
+                          const result = await softDeleteUser(user.id);
+                          if (result.success) toast.success('유저가 삭제되었습니다.');
+                          else toast.error(result.error);
+                        });
+                      },
+                    });
+                  }}
+                  disabled={isPending}
+                  className="rounded-md bg-red-500/10 px-3 py-1 text-[12px] font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-50"
+                >
+                  삭제
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

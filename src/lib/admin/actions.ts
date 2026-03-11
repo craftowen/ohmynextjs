@@ -67,6 +67,59 @@ export async function updateUserStatus(userId: string, status: 'active' | 'banne
   }
 }
 
+export async function softDeleteUser(userId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    if (admin.userId === userId) {
+      return { success: false, error: '자기 자신은 삭제할 수 없습니다.' };
+    }
+
+    const [target] = await db.select({ status: users.status }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!target) return { success: false, error: '유저를 찾을 수 없습니다.' };
+    if (target.status === 'deleted') return { success: false, error: '이미 삭제된 유저입니다.' };
+
+    await db.update(users).set({ status: 'deleted', updatedAt: new Date() }).where(eq(users.id, userId));
+
+    await db.insert(auditLogs).values({
+      userId: admin.userId,
+      action: 'user.delete',
+      target: 'users',
+      targetId: userId,
+      details: { previousStatus: target.status },
+    });
+
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch {
+    return { success: false, error: '유저 삭제에 실패했습니다.' };
+  }
+}
+
+export async function restoreUser(userId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    const [target] = await db.select({ status: users.status }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!target) return { success: false, error: '유저를 찾을 수 없습니다.' };
+    if (target.status !== 'deleted') return { success: false, error: '삭제된 유저가 아닙니다.' };
+
+    await db.update(users).set({ status: 'active', updatedAt: new Date() }).where(eq(users.id, userId));
+
+    await db.insert(auditLogs).values({
+      userId: admin.userId,
+      action: 'user.restore',
+      target: 'users',
+      targetId: userId,
+      details: {},
+    });
+
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch {
+    return { success: false, error: '유저 복구에 실패했습니다.' };
+  }
+}
+
 export async function bulkUpdateUsers(
   userIds: string[],
   update: { role?: 'user' | 'admin'; status?: 'active' | 'banned' },

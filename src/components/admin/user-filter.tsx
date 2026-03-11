@@ -50,6 +50,7 @@ export function UserFilter({
         <option value="">전체 상태</option>
         <option value="active">활성</option>
         <option value="banned">차단</option>
+        <option value="deleted">삭제됨</option>
       </select>
       <select
         value={currentProvider}
