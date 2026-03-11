@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { updateUserRole, updateUserStatus } from '@/lib/admin/actions';
+import { toast } from 'sonner';
 import { ConfirmDialog } from './confirm-dialog';
-import { useToast } from './toast';
+import { routes } from '@/lib/routes';
 
 interface UserRow {
   id: string;
@@ -21,8 +23,18 @@ interface UserTableProps {
   currentAdminId: string;
 }
 
+const roleBadge = {
+  admin: 'bg-primary/10 text-primary',
+  user: 'bg-muted text-muted-foreground',
+};
+
+const statusBadge = {
+  active: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  banned: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  deleted: 'bg-muted text-muted-foreground',
+};
+
 export function UserTable({ users, currentAdminId }: UserTableProps) {
-  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -33,7 +45,7 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
 
   const handleRoleChange = (user: UserRow, newRole: 'user' | 'admin') => {
     if (user.id === currentAdminId) {
-      toast('자기 자신의 역할은 변경할 수 없습니다.', 'error');
+      toast.error('자기 자신의 역할은 변경할 수 없습니다.');
       return;
     }
     setDialog({
@@ -44,9 +56,9 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
         startTransition(async () => {
           const result = await updateUserRole(user.id, newRole);
           if (result.success) {
-            toast('역할이 변경되었습니다.');
+            toast.success('역할이 변경되었습니다.');
           } else {
-            toast(result.error, 'error');
+            toast.error(result.error);
           }
         });
       },
@@ -55,7 +67,7 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
 
   const handleStatusChange = (user: UserRow, newStatus: 'active' | 'banned') => {
     if (user.id === currentAdminId) {
-      toast('자기 자신의 상태는 변경할 수 없습니다.', 'error');
+      toast.error('자기 자신의 상태는 변경할 수 없습니다.');
       return;
     }
     setDialog({
@@ -66,9 +78,9 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
         startTransition(async () => {
           const result = await updateUserStatus(user.id, newStatus);
           if (result.success) {
-            toast('상태가 변경되었습니다.');
+            toast.success('상태가 변경되었습니다.');
           } else {
-            toast(result.error, 'error');
+            toast.error(result.error);
           }
         });
       },
@@ -79,46 +91,53 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
     <>
       {/* Desktop table */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-sm" role="table">
+        <table className="w-full text-[13px]" role="table">
           <thead>
             <tr className="border-b border-border">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">이름</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">이메일</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">역할</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">상태</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">가입일</th>
+              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">이름</th>
+              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">이메일</th>
+              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">역할</th>
+              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">상태</th>
+              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">가입일</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-b border-border hover:bg-accent/50">
-                <td className="px-4 py-3">{user.name ?? '-'}</td>
-                <td className="px-4 py-3">{user.email}</td>
-                <td className="px-4 py-3">
+              <tr key={user.id} className="border-b border-border last:border-b-0 hover:bg-accent/50 transition-colors">
+                <td className="px-4 py-2.5 font-medium">
+                  <Link
+                    href={routes.admin.userDetail(user.id)}
+                    className="hover:text-primary hover:underline underline-offset-2 transition-colors"
+                  >
+                    {user.name ?? '-'}
+                  </Link>
+                </td>
+                <td className="px-4 py-2.5 text-muted-foreground">{user.email}</td>
+                <td className="px-4 py-2.5">
                   <select
                     value={user.role}
                     onChange={(e) => handleRoleChange(user, e.target.value as 'user' | 'admin')}
                     disabled={user.id === currentAdminId || isPending}
-                    className="rounded-md border border-border bg-background px-2 py-1 text-sm disabled:opacity-50"
+                    className={`rounded-md border border-border bg-background px-2 py-0.5 text-[12px] font-medium disabled:opacity-50 ${roleBadge[user.role]}`}
                     aria-label={`${user.email} 역할`}
                   >
                     <option value="user">user</option>
                     <option value="admin">admin</option>
                   </select>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-2.5">
                   <select
                     value={user.status}
                     onChange={(e) => handleStatusChange(user, e.target.value as 'active' | 'banned')}
                     disabled={user.id === currentAdminId || isPending}
-                    className="rounded-md border border-border bg-background px-2 py-1 text-sm disabled:opacity-50"
+                    className={`rounded-md border border-border bg-background px-2 py-0.5 text-[12px] font-medium disabled:opacity-50 ${statusBadge[user.status]}`}
                     aria-label={`${user.email} 상태`}
                   >
                     <option value="active">active</option>
                     <option value="banned">banned</option>
                   </select>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                <td className="px-4 py-2.5 text-muted-foreground">
                   {new Date(user.createdAt).toLocaleDateString('ko-KR')}
                 </td>
               </tr>
@@ -128,17 +147,27 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
       </div>
 
       {/* Mobile cards */}
-      <div className="flex flex-col gap-3 md:hidden">
+      <div className="flex flex-col divide-y divide-border md:hidden">
         {users.map((user) => (
-          <div key={user.id} className="rounded-lg border border-border p-4">
-            <p className="font-medium">{user.name ?? '-'}</p>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-            <div className="mt-3 flex items-center gap-2">
+          <div key={user.id} className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <Link
+                href={routes.admin.userDetail(user.id)}
+                className="text-[13px] font-medium hover:text-primary hover:underline underline-offset-2 transition-colors"
+              >
+                {user.name ?? '-'}
+              </Link>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusBadge[user.status]}`}>
+                {user.status}
+              </span>
+            </div>
+            <p className="text-[12px] text-muted-foreground mt-0.5">{user.email}</p>
+            <div className="mt-2 flex items-center gap-2">
               <select
                 value={user.role}
                 onChange={(e) => handleRoleChange(user, e.target.value as 'user' | 'admin')}
                 disabled={user.id === currentAdminId || isPending}
-                className="rounded-md border border-border bg-background px-2 py-1 text-xs disabled:opacity-50"
+                className="rounded-md border border-border bg-background px-2 py-1 text-[12px] disabled:opacity-50"
                 aria-label={`${user.email} 역할`}
               >
                 <option value="user">user</option>
@@ -148,14 +177,14 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
                 value={user.status}
                 onChange={(e) => handleStatusChange(user, e.target.value as 'active' | 'banned')}
                 disabled={user.id === currentAdminId || isPending}
-                className="rounded-md border border-border bg-background px-2 py-1 text-xs disabled:opacity-50"
+                className="rounded-md border border-border bg-background px-2 py-1 text-[12px] disabled:opacity-50"
                 aria-label={`${user.email} 상태`}
               >
                 <option value="active">active</option>
                 <option value="banned">banned</option>
               </select>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
               {new Date(user.createdAt).toLocaleDateString('ko-KR')}
             </p>
           </div>
