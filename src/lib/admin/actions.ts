@@ -155,6 +155,53 @@ export async function impersonateUser(userId: string): Promise<{ success: true; 
   }
 }
 
+export async function createUser(data: {
+  email: string;
+  name?: string;
+  role?: 'user' | 'admin';
+}): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    const { data: authData, error } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      email_confirm: true,
+      user_metadata: { name: data.name },
+    });
+
+    if (error) return { success: false, error: `유저 생성 실패: ${error.message}` };
+
+    const newUserId = authData.user.id;
+
+    await db.insert(users).values({
+      id: newUserId,
+      email: data.email,
+      name: data.name ?? null,
+      role: data.role ?? 'user',
+      provider: 'email',
+    });
+
+    await db.insert(auditLogs).values({
+      userId: admin.userId,
+      action: 'user.create',
+      target: 'users',
+      targetId: newUserId,
+      details: { email: data.email, role: data.role ?? 'user' },
+    });
+
+    // Send password reset so user can set their password
+    await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email: data.email,
+    });
+
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch {
+    return { success: false, error: '유저 생성에 실패했습니다.' };
+  }
+}
+
 export async function sendPasswordResetLink(userId: string): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();

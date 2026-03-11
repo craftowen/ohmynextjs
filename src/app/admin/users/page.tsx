@@ -6,6 +6,7 @@ import { Pagination } from '@/components/admin/pagination';
 import { SearchInput } from '@/components/admin/search-input';
 import { UserFilter } from '@/components/admin/user-filter';
 import { CsvExportButton } from '@/components/admin/csv-export-button';
+import { CreateUserButton } from '@/components/admin/create-user-button';
 import { exportUsersCsv } from '@/lib/admin/actions';
 
 interface Props {
@@ -34,6 +35,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
             <SearchInput placeholder="이메일 또는 이름으로 검색..." defaultValue={query} />
           </div>
           <CsvExportButton action={exportUsersCsv} filename="users.csv" />
+          <CreateUserButton />
         </div>
       </div>
 
