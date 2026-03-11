@@ -10,18 +10,6 @@ export interface CancelParams {
   cancelAmount?: number;
 }
 
-export interface BillingKeyParams {
-  customerKey: string;
-  authKey: string;
-}
-
-export interface BillingPayParams {
-  customerKey: string;
-  amount: number;
-  orderId: string;
-  orderName: string;
-}
-
 export interface TossPayment {
   paymentKey: string;
   orderId: string;
@@ -38,13 +26,6 @@ export interface TossCancel {
   cancelAmount: number;
   cancelReason: string;
   canceledAt: string;
-}
-
-export interface BillingKeyResponse {
-  billingKey: string;
-  customerKey: string;
-  cardCompany: string;
-  cardNumber: string;
 }
 
 export class TossPaymentError extends Error {
@@ -95,14 +76,6 @@ export class TossClient {
   async cancelPayment(paymentKey: string, params: CancelParams): Promise<TossPayment> {
     return this.request<TossPayment>('POST', `/payments/${paymentKey}/cancel`, params);
   }
-
-  async issueBillingKey(params: BillingKeyParams): Promise<BillingKeyResponse> {
-    return this.request<BillingKeyResponse>('POST', '/billing/authorizations/issue', params);
-  }
-
-  async payWithBillingKey(billingKey: string, params: BillingPayParams): Promise<TossPayment> {
-    return this.request<TossPayment>('POST', `/billing/${billingKey}`, params);
-  }
 }
 
 export const tossClient = new TossClient(process.env.TOSS_SECRET_KEY || '');
@@ -110,14 +83,6 @@ export const tossClient = new TossClient(process.env.TOSS_SECRET_KEY || '');
 // Convenience functions
 export async function confirmOneTimePayment(params: ConfirmPaymentParams): Promise<TossPayment> {
   return tossClient.confirmPayment(params);
-}
-
-export async function issueBillingKey(params: BillingKeyParams): Promise<BillingKeyResponse> {
-  return tossClient.issueBillingKey(params);
-}
-
-export async function payWithBillingKey(billingKey: string, params: BillingPayParams): Promise<TossPayment> {
-  return tossClient.payWithBillingKey(billingKey, params);
 }
 
 export async function refundPayment(paymentKey: string, params: CancelParams): Promise<TossPayment> {

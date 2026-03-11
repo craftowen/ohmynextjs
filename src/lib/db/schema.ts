@@ -6,9 +6,6 @@ export const userStatusEnum = pgEnum('user_status', ['active', 'banned', 'delete
 export const paymentStatusEnum = pgEnum('payment_status', [
   'pending', 'paid', 'failed', 'cancelled', 'refunded', 'partial_refunded',
 ]);
-export const subscriptionStatusEnum = pgEnum('subscription_status', [
-  'active', 'cancelled', 'past_due', 'expired', 'trialing',
-]);
 export const paymentMethodEnum = pgEnum('payment_method', [
   'card', 'virtual_account', 'transfer', 'mobile',
 ]);
@@ -26,12 +23,12 @@ export const users = pgTable('users', {
   lastSignInAt: timestamp('last_sign_in_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  emailIdx: index('users_email_idx').on(table.email),
-  roleIdx: index('users_role_idx').on(table.role),
-  statusIdx: index('users_status_idx').on(table.status),
-  createdAtIdx: index('users_created_at_idx').on(table.createdAt),
-}));
+}, (table) => [
+  index('users_email_idx').on(table.email),
+  index('users_role_idx').on(table.role),
+  index('users_status_idx').on(table.status),
+  index('users_created_at_idx').on(table.createdAt),
+]);
 
 // Plans
 export const plans = pgTable('plans', {
@@ -49,10 +46,10 @@ export const plans = pgTable('plans', {
   metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  slugIdx: uniqueIndex('plans_slug_idx').on(table.slug),
-  activeIdx: index('plans_active_idx').on(table.isActive),
-}));
+}, (table) => [
+  uniqueIndex('plans_slug_idx').on(table.slug),
+  index('plans_active_idx').on(table.isActive),
+]);
 
 // Payments
 export const payments = pgTable('payments', {
@@ -74,34 +71,12 @@ export const payments = pgTable('payments', {
   metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  userIdx: index('payments_user_id_idx').on(table.userId),
-  orderIdx: uniqueIndex('payments_order_id_idx').on(table.orderId),
-  statusIdx: index('payments_status_idx').on(table.status),
-  createdAtIdx: index('payments_created_at_idx').on(table.createdAt),
-}));
-
-// Subscriptions
-export const subscriptions = pgTable('subscriptions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  planId: uuid('plan_id').notNull().references(() => plans.id),
-  billingKey: text('billing_key'),
-  status: subscriptionStatusEnum('status').default('active').notNull(),
-  currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(),
-  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
-  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
-  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
-  trialStart: timestamp('trial_start', { withTimezone: true }),
-  trialEnd: timestamp('trial_end', { withTimezone: true }),
-  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  userIdx: index('subscriptions_user_id_idx').on(table.userId),
-  statusIdx: index('subscriptions_status_idx').on(table.status),
-  periodEndIdx: index('subscriptions_period_end_idx').on(table.currentPeriodEnd),
-}));
+}, (table) => [
+  index('payments_user_id_idx').on(table.userId),
+  uniqueIndex('payments_order_id_idx').on(table.orderId),
+  index('payments_status_idx').on(table.status),
+  index('payments_created_at_idx').on(table.createdAt),
+]);
 
 // App Settings
 export const appSettings = pgTable('app_settings', {
@@ -112,9 +87,9 @@ export const appSettings = pgTable('app_settings', {
   isPublic: boolean('is_public').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  keyIdx: uniqueIndex('app_settings_key_idx').on(table.key),
-}));
+}, (table) => [
+  uniqueIndex('app_settings_key_idx').on(table.key),
+]);
 
 // Legal Documents
 export const legalDocuments = pgTable('legal_documents', {
@@ -128,11 +103,11 @@ export const legalDocuments = pgTable('legal_documents', {
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  typeIdx: index('legal_documents_type_idx').on(table.type),
-  activeIdx: index('legal_documents_active_idx').on(table.type, table.isActive),
-  typeVersionIdx: uniqueIndex('legal_documents_type_version_idx').on(table.type, table.version),
-}));
+}, (table) => [
+  index('legal_documents_type_idx').on(table.type),
+  index('legal_documents_active_idx').on(table.type, table.isActive),
+  uniqueIndex('legal_documents_type_version_idx').on(table.type, table.version),
+]);
 
 // Audit Logs
 export const auditLogs = pgTable('audit_logs', {
@@ -145,8 +120,8 @@ export const auditLogs = pgTable('audit_logs', {
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  userIdx: index('audit_logs_user_id_idx').on(table.userId),
-  actionIdx: index('audit_logs_action_idx').on(table.action),
-  createdAtIdx: index('audit_logs_created_at_idx').on(table.createdAt),
-}));
+}, (table) => [
+  index('audit_logs_user_id_idx').on(table.userId),
+  index('audit_logs_action_idx').on(table.action),
+  index('audit_logs_created_at_idx').on(table.createdAt),
+]);

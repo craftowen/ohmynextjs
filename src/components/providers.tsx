@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from './theme-provider';
 import { Toaster } from 'sonner';
 import { type OhMyConfig, defaultConfig } from '@/lib/config';
@@ -26,6 +28,8 @@ export function Providers({ children, config }: OhMyProviderProps) {
     >
       {children}
       <Toaster richColors position="top-right" />
+      <Analytics />
+      <SpeedInsights />
     </ThemeProvider>
   );
 }

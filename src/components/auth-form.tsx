@@ -96,7 +96,17 @@ export function AuthForm({ mode, showSocial = true, onSubmit, onOAuthClick }: Au
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium leading-none">비밀번호</label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-sm font-medium leading-none">비밀번호</label>
+              {isLogin && (
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  비밀번호를 잊으셨나요?
+                </Link>
+              )}
+            </div>
             <input
               id="password"
               type="password"

@@ -1,4 +1,15 @@
-import { MarkdownRenderer } from '@/components/admin/markdown-renderer';
+import type { Metadata } from 'next';
+import nextDynamic from 'next/dynamic';
+
+export const metadata: Metadata = {
+  title: '이용약관',
+  description: 'OhMyNextJS 서비스 이용약관',
+};
+
+const MarkdownRenderer = nextDynamic(
+  () => import('@/components/admin/markdown-renderer').then((mod) => mod.MarkdownRenderer),
+  { loading: () => <div className="animate-pulse h-96 bg-muted rounded-lg" /> }
+);
 
 const fallbackContent = `# 이용약관
 
@@ -21,7 +32,7 @@ async function getDoc() {
   }
 }
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // 1시간마다 재생성
 
 export default async function TermsPage() {
   const doc = await getDoc();

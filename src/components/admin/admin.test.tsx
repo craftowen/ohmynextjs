@@ -10,6 +10,7 @@ vi.mock('next/navigation', () => ({
 
 // Mock next/link
 vi.mock('next/link', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   default: ({ children, href, ...props }: any) => <a href={href} {...props}>{children}</a>,
 }));
 
@@ -26,6 +27,7 @@ describe('StatCard', () => {
   it('renders title and value', async () => {
     const { StatCard } = await import('./stat-card');
     const Icon = () => <svg data-testid="icon" />;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     render(<StatCard title="총 유저" value="1,234" icon={Icon as any} />);
     expect(screen.getByText('총 유저')).toBeInTheDocument();
     expect(screen.getByText('1,234')).toBeInTheDocument();
@@ -166,11 +168,8 @@ describe('UserTable', () => {
 
   it('renders user data', async () => {
     const { UserTable } = await import('./user-table');
-    const { ToastProvider } = await import('./toast');
     render(
-      <ToastProvider>
-        <UserTable users={mockUsers} currentAdminId="admin-1" />
-      </ToastProvider>
+      <UserTable users={mockUsers} currentAdminId="admin-1" />
     );
     expect(screen.getAllByText('test@test.com').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Test User').length).toBeGreaterThan(0);
@@ -202,7 +201,6 @@ describe('PaymentTable', () => {
 describe('SettingsList', () => {
   it('renders settings', async () => {
     const { SettingsList } = await import('./settings-list');
-    const { ToastProvider } = await import('./toast');
     const mockSettings = [
       {
         id: 's1',
@@ -215,9 +213,7 @@ describe('SettingsList', () => {
       },
     ];
     render(
-      <ToastProvider>
-        <SettingsList settings={mockSettings} />
-      </ToastProvider>
+      <SettingsList settings={mockSettings} />
     );
     expect(screen.getByText('site_name')).toBeInTheDocument();
     expect(screen.getByText('공개')).toBeInTheDocument();
@@ -225,11 +221,8 @@ describe('SettingsList', () => {
 
   it('shows empty message when no settings', async () => {
     const { SettingsList } = await import('./settings-list');
-    const { ToastProvider } = await import('./toast');
     render(
-      <ToastProvider>
-        <SettingsList settings={[]} />
-      </ToastProvider>
+      <SettingsList settings={[]} />
     );
     expect(screen.getByText('설정이 없습니다.')).toBeInTheDocument();
   });

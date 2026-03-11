@@ -15,10 +15,13 @@ export interface OhMyConfig {
   };
 }
 
+export const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://ohmynextjs.com';
+
 export const defaultConfig: OhMyConfig = {
   app: {
     name: 'OhMyNextJS',
     description: 'Next.js SaaS Boilerplate',
+    url: BASE_URL,
   },
   theme: {
     defaultTheme: 'system',

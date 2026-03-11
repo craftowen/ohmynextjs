@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { users, plans, payments, subscriptions, appSettings, auditLogs, legalDocuments } from './schema';
+import { users, plans, payments, appSettings, auditLogs, legalDocuments } from './schema';
 
 describe('schema', () => {
   it('exports users table', () => {
@@ -12,10 +12,6 @@ describe('schema', () => {
 
   it('exports payments table', () => {
     expect(payments).toBeDefined();
-  });
-
-  it('exports subscriptions table', () => {
-    expect(subscriptions).toBeDefined();
   });
 
   it('exports appSettings table', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock drizzle-orm
 vi.mock('drizzle-orm', () => ({
@@ -18,26 +18,6 @@ vi.mock('@/lib/db/schema', () => ({
   appSettings: { id: 'id', key: 'key', value: 'value', description: 'description', isPublic: 'isPublic', createdAt: 'createdAt', updatedAt: 'updatedAt' },
 }));
 
-// Chain builder for mock query
-function createChain(result: unknown) {
-  const chain: Record<string, unknown> = {};
-  const methods = ['select', 'from', 'where', 'orderBy', 'limit', 'offset', 'leftJoin'];
-  methods.forEach((m) => {
-    chain[m] = vi.fn().mockReturnValue(chain);
-  });
-  // Terminal: limit returns promise
-  chain['limit'] = vi.fn().mockResolvedValue(result);
-  // For count queries that don't use limit
-  chain['from'] = vi.fn().mockReturnValue(chain);
-  chain['where'] = vi.fn().mockReturnValue(chain);
-  chain['orderBy'] = vi.fn().mockReturnValue(chain);
-  chain['offset'] = vi.fn().mockReturnValue(chain);
-  chain['leftJoin'] = vi.fn().mockReturnValue(chain);
-  // Make chain itself thenable for queries without limit
-  (chain as any).then = (resolve: (v: unknown) => void) => resolve(result);
-  return chain;
-}
-
 // The mock db returns different results for each call via selectResults
 let selectCallIndex = 0;
 let selectResults: unknown[][] = [];
@@ -45,6 +25,7 @@ let selectResults: unknown[][] = [];
 const mockChain = () => {
   const result = selectResults[selectCallIndex] || [];
   selectCallIndex++;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chain: any = {};
   const methods = ['from', 'where', 'orderBy', 'limit', 'offset', 'leftJoin'];
   methods.forEach((m) => {
