@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { updateUserRole, updateUserStatus } from '@/lib/admin/actions';
 import { toast } from 'sonner';
 import { ConfirmDialog } from './confirm-dialog';
@@ -21,6 +23,8 @@ interface UserRow {
 interface UserTableProps {
   users: UserRow[];
   currentAdminId: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 const roleBadge = {
@@ -34,7 +38,9 @@ const statusBadge = {
   deleted: 'bg-muted text-muted-foreground',
 };
 
-export function UserTable({ users, currentAdminId }: UserTableProps) {
+export function UserTable({ users, currentAdminId, sortBy = '', sortOrder = '' }: UserTableProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -42,6 +48,25 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
     description: string;
     action: () => Promise<void>;
   }>({ open: false, title: '', description: '', action: async () => {} });
+
+  const handleSort = useCallback((column: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (sortBy === column) {
+      if (sortOrder === 'asc') {
+        params.set('sortOrder', 'desc');
+      } else if (sortOrder === 'desc') {
+        params.delete('sortBy');
+        params.delete('sortOrder');
+      } else {
+        params.set('sortOrder', 'asc');
+      }
+    } else {
+      params.set('sortBy', column);
+      params.set('sortOrder', 'asc');
+    }
+    params.delete('page');
+    router.push(`?${params.toString()}`);
+  }, [sortBy, sortOrder, searchParams, router]);
 
   const handleRoleChange = (user: UserRow, newRole: 'user' | 'admin') => {
     if (user.id === currentAdminId) {
@@ -94,11 +119,11 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
         <table className="w-full text-[13px]" role="table">
           <thead>
             <tr className="border-b border-border">
-              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">이름</th>
-              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">이메일</th>
+              <SortHeader label="이름" column="name" currentSort={sortBy} currentOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="이메일" column="email" currentSort={sortBy} currentOrder={sortOrder} onSort={handleSort} />
               <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">역할</th>
               <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">상태</th>
-              <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">가입일</th>
+              <SortHeader label="가입일" column="createdAt" currentSort={sortBy} currentOrder={sortOrder} onSort={handleSort} />
             </tr>
           </thead>
           <tbody>
@@ -202,5 +227,41 @@ export function UserTable({ users, currentAdminId }: UserTableProps) {
         onCancel={() => setDialog((d) => ({ ...d, open: false }))}
       />
     </>
+  );
+}
+
+function SortHeader({
+  label,
+  column,
+  currentSort,
+  currentOrder,
+  onSort,
+}: {
+  label: string;
+  column: string;
+  currentSort: string;
+  currentOrder: string;
+  onSort: (column: string) => void;
+}) {
+  const isActive = currentSort === column;
+
+  return (
+    <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">
+      <button
+        onClick={() => onSort(column)}
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {label}
+        {isActive ? (
+          currentOrder === 'asc' ? (
+            <ArrowUp className="h-3 w-3 text-foreground" />
+          ) : (
+            <ArrowDown className="h-3 w-3 text-foreground" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-40" />
+        )}
+      </button>
+    </th>
   );
 }

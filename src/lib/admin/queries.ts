@@ -3,7 +3,7 @@
 import { cache } from 'react';
 import { db } from '@/lib/db/client';
 import { users, payments, appSettings, auditLogs } from '@/lib/db/schema';
-import { eq, ne, sql, ilike, or, and, desc, count, sum } from 'drizzle-orm';
+import { eq, ne, sql, ilike, or, and, desc, asc, count, sum } from 'drizzle-orm';
 
 // Types
 export interface AdminStats {
@@ -128,14 +128,25 @@ export const getRecentPayments = cache(async (limit = 5) => {
 });
 
 // Users
+const userSortColumns = {
+  name: users.name,
+  email: users.email,
+  createdAt: users.createdAt,
+  lastSignInAt: users.lastSignInAt,
+} as const;
+
+export type UserSortBy = keyof typeof userSortColumns;
+
 export async function getUsers(params: {
   query?: string;
   role?: string;
   status?: string;
   page?: number;
   perPage?: number;
+  sortBy?: string;
+  sortOrder?: string;
 }): Promise<UsersResponse> {
-  const { query, role, status, page = 1, perPage = 20 } = params;
+  const { query, role, status, page = 1, perPage = 20, sortBy, sortOrder } = params;
   const offset = (page - 1) * perPage;
 
   const conditions = [ne(users.status, 'deleted')];
@@ -143,6 +154,11 @@ export async function getUsers(params: {
   if (role) conditions.push(eq(users.role, role as 'user' | 'admin'));
   if (status) conditions.push(eq(users.status, status as 'active' | 'banned'));
   const whereClause = and(...conditions);
+
+  const sortColumn = sortBy && sortBy in userSortColumns
+    ? userSortColumns[sortBy as UserSortBy]
+    : users.createdAt;
+  const orderFn = sortOrder === 'asc' ? asc : desc;
 
   const [data, [{ total }]] = await Promise.all([
     db.select({
@@ -157,7 +173,7 @@ export async function getUsers(params: {
     })
       .from(users)
       .where(whereClause)
-      .orderBy(desc(users.createdAt))
+      .orderBy(orderFn(sortColumn))
       .limit(perPage)
       .offset(offset),
     db.select({ total: count() }).from(users).where(whereClause),
