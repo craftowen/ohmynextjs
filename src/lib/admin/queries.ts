@@ -52,38 +52,49 @@ export interface PaymentsResponse {
 
 // Dashboard
 export const getAdminStats = cache(async (): Promise<AdminStats> => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
-    const [[userStats], [revenueStats], [monthlyStats], [lastMonthStats], [todayStats], [yesterdayStats]] = await Promise.all([
-      db.select({ count: count() }).from(users).where(ne(users.status, 'deleted')),
-      db.select({ total: sum(payments.amount) }).from(payments).where(eq(payments.status, 'paid')),
-      db.select({ total: sum(payments.amount) }).from(payments)
-        .where(and(eq(payments.status, 'paid'), sql`${payments.paidAt} >= ${monthStart}`)),
-      db.select({ total: sum(payments.amount) }).from(payments)
-        .where(and(eq(payments.status, 'paid'), sql`${payments.paidAt} >= ${lastMonthStart}`, sql`${payments.paidAt} < ${monthStart}`)),
-      db.select({ count: count() }).from(users)
-        .where(and(sql`${users.createdAt} >= ${today}`, ne(users.status, 'deleted'))),
-      db.select({ count: count() }).from(users)
-        .where(and(sql`${users.createdAt} >= ${yesterday}`, sql`${users.createdAt} < ${today}`, ne(users.status, 'deleted'))),
-    ]);
+  const safe = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+    try { return await fn(); } catch { return fallback; }
+  };
 
-    return {
-      totalUsers: userStats?.count ?? 0,
-      todaySignups: todayStats?.count ?? 0,
-      totalRevenue: Number(revenueStats?.total ?? 0),
-      monthlyRevenue: Number(monthlyStats?.total ?? 0),
-      lastMonthRevenue: Number(lastMonthStats?.total ?? 0),
-      yesterdaySignups: yesterdayStats?.count ?? 0,
-    };
-  } catch {
-    return { totalUsers: 0, todaySignups: 0, totalRevenue: 0, monthlyRevenue: 0, lastMonthRevenue: 0, yesterdaySignups: 0 };
-  }
+  const [totalUsers, todaySignups, yesterdaySignups, totalRevenue, monthlyRevenue, lastMonthRevenue] = await Promise.all([
+    safe(async () => {
+      const [r] = await db.select({ count: count() }).from(users).where(ne(users.status, 'deleted'));
+      return r?.count ?? 0;
+    }, 0),
+    safe(async () => {
+      const [r] = await db.select({ count: count() }).from(users)
+        .where(and(sql`${users.createdAt} >= ${today}`, ne(users.status, 'deleted')));
+      return r?.count ?? 0;
+    }, 0),
+    safe(async () => {
+      const [r] = await db.select({ count: count() }).from(users)
+        .where(and(sql`${users.createdAt} >= ${yesterday}`, sql`${users.createdAt} < ${today}`, ne(users.status, 'deleted')));
+      return r?.count ?? 0;
+    }, 0),
+    safe(async () => {
+      const [r] = await db.select({ total: sum(payments.amount) }).from(payments).where(eq(payments.status, 'paid'));
+      return Number(r?.total ?? 0);
+    }, 0),
+    safe(async () => {
+      const [r] = await db.select({ total: sum(payments.amount) }).from(payments)
+        .where(and(eq(payments.status, 'paid'), sql`${payments.paidAt} >= ${monthStart}`));
+      return Number(r?.total ?? 0);
+    }, 0),
+    safe(async () => {
+      const [r] = await db.select({ total: sum(payments.amount) }).from(payments)
+        .where(and(eq(payments.status, 'paid'), sql`${payments.paidAt} >= ${lastMonthStart}`, sql`${payments.paidAt} < ${monthStart}`));
+      return Number(r?.total ?? 0);
+    }, 0),
+  ]);
+
+  return { totalUsers, todaySignups, totalRevenue, monthlyRevenue, lastMonthRevenue, yesterdaySignups };
 });
 
 export const getRecentUsers = cache(async (limit = 5) => {
