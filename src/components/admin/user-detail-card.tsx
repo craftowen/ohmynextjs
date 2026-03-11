@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Pencil, Check, X } from 'lucide-react';
-import { updateUserRole, updateUserStatus, updateUserProfile, softDeleteUser, restoreUser, sendPasswordResetLink } from '@/lib/admin/actions';
+import { Pencil, Check, X, UserCheck } from 'lucide-react';
+import { updateUserRole, updateUserStatus, updateUserProfile, softDeleteUser, restoreUser, sendPasswordResetLink, impersonateUser } from '@/lib/admin/actions';
 import { toast } from 'sonner';
 import { ConfirmDialog } from './confirm-dialog';
 
@@ -224,6 +224,33 @@ export function UserDetailCard({
 
           {!isSelf && (
             <div className="ml-auto flex items-center gap-2">
+              {user.status !== 'deleted' && (
+                <button
+                  onClick={() => {
+                    setDialog({
+                      open: true,
+                      title: '유저 가장',
+                      description: `${user.email}로 로그인하시겠습니까? 새 탭에서 해당 유저 시점으로 접속합니다.`,
+                      action: async () => {
+                        startTransition(async () => {
+                          const result = await impersonateUser(user.id);
+                          if (result.success) {
+                            window.open(result.token, '_blank');
+                            toast.success('유저 가장 링크가 열렸습니다.');
+                          } else {
+                            toast.error(result.error);
+                          }
+                        });
+                      },
+                    });
+                  }}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1 rounded-md bg-purple-500/10 px-3 py-1 text-[12px] font-medium text-purple-600 hover:bg-purple-500/20 disabled:opacity-50"
+                >
+                  <UserCheck className="h-3 w-3" />
+                  가장
+                </button>
+              )}
               {user.provider === 'email' && user.status !== 'deleted' && (
                 <button
                   onClick={() => {

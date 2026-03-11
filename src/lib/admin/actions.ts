@@ -121,6 +121,40 @@ export async function restoreUser(userId: string): Promise<ActionResult> {
   }
 }
 
+export async function impersonateUser(userId: string): Promise<{ success: true; token: string } | { success: false; error: string }> {
+  try {
+    const admin = await requireAdmin();
+    if (admin.userId === userId) {
+      return { success: false, error: '자기 자신은 가장할 수 없습니다.' };
+    }
+
+    const [target] = await db.select({ email: users.email, status: users.status }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!target) return { success: false, error: '유저를 찾을 수 없습니다.' };
+    if (target.status === 'deleted') return { success: false, error: '삭제된 유저는 가장할 수 없습니다.' };
+
+    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: target.email,
+    });
+
+    if (error || !data.properties?.hashed_token) {
+      return { success: false, error: `가장 링크 생성 실패: ${error?.message ?? '알 수 없는 오류'}` };
+    }
+
+    await db.insert(auditLogs).values({
+      userId: admin.userId,
+      action: 'user.impersonate',
+      target: 'users',
+      targetId: userId,
+      details: { email: target.email },
+    });
+
+    return { success: true, token: data.properties.action_link };
+  } catch {
+    return { success: false, error: '유저 가장에 실패했습니다.' };
+  }
+}
+
 export async function sendPasswordResetLink(userId: string): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();
