@@ -4,7 +4,7 @@ import { useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { updateUserRole, updateUserStatus } from '@/lib/admin/actions';
+import { updateUserRole, updateUserStatus, bulkUpdateUsers } from '@/lib/admin/actions';
 import { toast } from 'sonner';
 import { ConfirmDialog } from './confirm-dialog';
 import { routes } from '@/lib/routes';
@@ -42,6 +42,7 @@ export function UserTable({ users, currentAdminId, sortBy = '', sortOrder = '' }
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<{
     open: boolean;
     title: string;
@@ -67,6 +68,47 @@ export function UserTable({ users, currentAdminId, sortBy = '', sortOrder = '' }
     params.delete('page');
     router.push(`?${params.toString()}`);
   }, [sortBy, sortOrder, searchParams, router]);
+
+  const selectableUsers = users.filter((u) => u.id !== currentAdminId);
+  const allSelected = selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(selectableUsers.map((u) => u.id)));
+    }
+  };
+
+  const handleBulkAction = (update: { role?: 'user' | 'admin'; status?: 'active' | 'banned' }) => {
+    const ids = Array.from(selectedIds);
+    const label = update.role ? `역할을 ${update.role}로` : `상태를 ${update.status}로`;
+    setDialog({
+      open: true,
+      title: '일괄 변경',
+      description: `선택된 ${ids.length}명의 ${label} 변경하시겠습니까?`,
+      action: async () => {
+        startTransition(async () => {
+          const result = await bulkUpdateUsers(ids, update);
+          if (result.success) {
+            toast.success(`${ids.length}명 일괄 변경 완료`);
+            setSelectedIds(new Set());
+          } else {
+            toast.error(result.error);
+          }
+        });
+      },
+    });
+  };
 
   const handleRoleChange = (user: UserRow, newRole: 'user' | 'admin') => {
     if (user.id === currentAdminId) {
@@ -114,11 +156,26 @@ export function UserTable({ users, currentAdminId, sortBy = '', sortOrder = '' }
 
   return (
     <>
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 border-b border-border bg-accent/30 px-4 py-2">
+          <span className="text-[12px] font-medium">{selectedIds.size}명 선택</span>
+          <button onClick={() => handleBulkAction({ role: 'admin' })} disabled={isPending} className="rounded-md bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary hover:bg-primary/20 disabled:opacity-50">관리자로</button>
+          <button onClick={() => handleBulkAction({ role: 'user' })} disabled={isPending} className="rounded-md bg-muted px-2.5 py-1 text-[12px] font-medium hover:bg-muted/80 disabled:opacity-50">유저로</button>
+          <button onClick={() => handleBulkAction({ status: 'banned' })} disabled={isPending} className="rounded-md bg-red-500/10 px-2.5 py-1 text-[12px] font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-50">차단</button>
+          <button onClick={() => handleBulkAction({ status: 'active' })} disabled={isPending} className="rounded-md bg-green-500/10 px-2.5 py-1 text-[12px] font-medium text-green-600 hover:bg-green-500/20 disabled:opacity-50">활성화</button>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-[12px] text-muted-foreground hover:text-foreground">취소</button>
+        </div>
+      )}
+
       {/* Desktop table */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-[13px]" role="table">
           <thead>
             <tr className="border-b border-border">
+              <th className="w-10 px-4 py-2.5">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5 rounded border-border" />
+              </th>
               <SortHeader label="이름" column="name" currentSort={sortBy} currentOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="이메일" column="email" currentSort={sortBy} currentOrder={sortOrder} onSort={handleSort} />
               <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">역할</th>
@@ -128,7 +185,16 @@ export function UserTable({ users, currentAdminId, sortBy = '', sortOrder = '' }
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-b border-border last:border-b-0 hover:bg-accent/50 transition-colors">
+              <tr key={user.id} className={`border-b border-border last:border-b-0 hover:bg-accent/50 transition-colors ${selectedIds.has(user.id) ? 'bg-accent/30' : ''}`}>
+                <td className="w-10 px-4 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(user.id)}
+                    onChange={() => toggleSelect(user.id)}
+                    disabled={user.id === currentAdminId}
+                    className="h-3.5 w-3.5 rounded border-border disabled:opacity-30"
+                  />
+                </td>
                 <td className="px-4 py-2.5 font-medium">
                   <Link
                     href={routes.admin.userDetail(user.id)}

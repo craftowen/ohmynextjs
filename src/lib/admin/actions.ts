@@ -67,6 +67,44 @@ export async function updateUserStatus(userId: string, status: 'active' | 'banne
   }
 }
 
+export async function bulkUpdateUsers(
+  userIds: string[],
+  update: { role?: 'user' | 'admin'; status?: 'active' | 'banned' },
+): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    const safeIds = userIds.filter((id) => id !== admin.userId);
+    if (safeIds.length === 0) {
+      return { success: false, error: '변경할 유저가 없습니다.' };
+    }
+
+    const action = update.role ? 'user.role.update' : 'user.status.update';
+    const field = update.role ? 'role' : 'status';
+    const value = update.role ?? update.status;
+
+    for (const userId of safeIds) {
+      await db
+        .update(users)
+        .set({ ...update, updatedAt: new Date() })
+        .where(eq(users.id, userId));
+
+      await db.insert(auditLogs).values({
+        userId: admin.userId,
+        action,
+        target: 'users',
+        targetId: userId,
+        details: { bulk: true, [field]: value },
+      });
+    }
+
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch {
+    return { success: false, error: '일괄 작업에 실패했습니다.' };
+  }
+}
+
 export async function updateUserProfile(
   userId: string,
   data: { name?: string },
