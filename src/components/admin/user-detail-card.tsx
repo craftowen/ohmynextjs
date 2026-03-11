@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updateUserRole, updateUserStatus } from '@/lib/admin/actions';
+import { Pencil, Check, X } from 'lucide-react';
+import { updateUserRole, updateUserStatus, updateUserProfile } from '@/lib/admin/actions';
 import { toast } from 'sonner';
 import { ConfirmDialog } from './confirm-dialog';
 
@@ -45,6 +46,8 @@ export function UserDetailCard({
   currentAdminId: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState(user.name ?? '');
   const [dialog, setDialog] = useState<{
     open: boolean;
     title: string;
@@ -53,6 +56,28 @@ export function UserDetailCard({
   }>({ open: false, title: '', description: '', action: async () => {} });
 
   const isSelf = user.id === currentAdminId;
+
+  const handleNameSave = () => {
+    const trimmed = editName.trim();
+    if (trimmed === (user.name ?? '')) {
+      setIsEditingName(false);
+      return;
+    }
+    startTransition(async () => {
+      const result = await updateUserProfile(user.id, { name: trimmed || undefined });
+      if (result.success) {
+        toast.success('이름이 변경되었습니다.');
+        setIsEditingName(false);
+      } else {
+        toast.error(result.error);
+      }
+    });
+  };
+
+  const handleNameCancel = () => {
+    setEditName(user.name ?? '');
+    setIsEditingName(false);
+  };
 
   const handleRoleChange = (newRole: 'user' | 'admin') => {
     if (isSelf) {
@@ -109,9 +134,51 @@ export function UserDetailCard({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-[16px] font-semibold truncate">
-                {user.name ?? '-'}
-              </h2>
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleNameSave();
+                      if (e.key === 'Escape') handleNameCancel();
+                    }}
+                    disabled={isPending}
+                    autoFocus
+                    className="h-8 w-full max-w-[240px] rounded-md border border-border bg-background px-2 text-[14px] font-semibold focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                  />
+                  <button
+                    onClick={handleNameSave}
+                    disabled={isPending}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-green-600 hover:bg-green-500/10 disabled:opacity-50"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={handleNameCancel}
+                    disabled={isPending}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="group flex items-center gap-1.5">
+                  <h2 className="text-[16px] font-semibold truncate">
+                    {user.name ?? '-'}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setEditName(user.name ?? '');
+                      setIsEditingName(true);
+                    }}
+                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
               <p className="text-[13px] text-muted-foreground truncate">{user.email}</p>
             </div>
             <div className="flex items-center gap-2">

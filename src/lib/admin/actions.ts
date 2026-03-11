@@ -67,6 +67,50 @@ export async function updateUserStatus(userId: string, status: 'active' | 'banne
   }
 }
 
+export async function updateUserProfile(
+  userId: string,
+  data: { name?: string },
+): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    const [target] = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!target) return { success: false, error: '유저를 찾을 수 없습니다.' };
+
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+
+    if (data.name !== undefined && data.name !== target.name) {
+      changes.name = { from: target.name, to: data.name };
+      updates.name = data.name || null;
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return { success: true };
+    }
+
+    await db.update(users).set(updates).where(eq(users.id, userId));
+
+    await db.insert(auditLogs).values({
+      userId: admin.userId,
+      action: 'user.profile.update',
+      target: 'users',
+      targetId: userId,
+      details: changes,
+    });
+
+    revalidatePath(`/admin/users/${userId}`);
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch {
+    return { success: false, error: '프로필 수정에 실패했습니다.' };
+  }
+}
+
 // Settings actions
 export async function createSetting(data: {
   key: string;
@@ -155,3 +199,29 @@ export async function deleteSetting(id: string): Promise<ActionResult> {
     return { success: false, error: '설정 삭제에 실패했습니다.' };
   }
 }
+
+// CSV Export
+export async function exportUsersCsv(): Promise<string> {
+  await requireAdmin();
+  const { getAllUsersForExport } = await import('./queries');
+  const data = await getAllUsersForExport();
+
+  const header = 'ID,이메일,이름,역할,상태,로그인방식,가입일';
+  const rows = data.map((u) =>
+    [u.id, u.email, u.name ?? '', u.role, u.status, u.provider ?? '', new Date(u.createdAt).toISOString()].join(',')
+  );
+  return [header, ...rows].join('\n');
+}
+
+export async function exportPaymentsCsv(): Promise<string> {
+  await requireAdmin();
+  const { getAllPaymentsForExport } = await import('./queries');
+  const data = await getAllPaymentsForExport();
+
+  const header = '주문ID,이메일,금액,통화,상태,결제수단,결제일,생성일';
+  const rows = data.map((p) =>
+    [p.orderId, p.userEmail ?? '', p.amount, p.currency, p.status, p.method ?? '', p.paidAt ? new Date(p.paidAt).toISOString() : '', new Date(p.createdAt).toISOString()].join(',')
+  );
+  return [header, ...rows].join('\n');
+}
+
