@@ -9,7 +9,7 @@ import { CsvExportButton } from '@/components/admin/csv-export-button';
 import { exportUsersCsv } from '@/lib/admin/actions';
 
 interface Props {
-  searchParams: Promise<{ q?: string; role?: string; status?: string; page?: string; sortBy?: string; sortOrder?: string }>;
+  searchParams: Promise<{ q?: string; role?: string; status?: string; provider?: string; dateFrom?: string; dateTo?: string; page?: string; sortBy?: string; sortOrder?: string }>;
 }
 
 export default async function AdminUsersPage({ searchParams }: Props) {
@@ -18,15 +18,18 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const role = params.role ?? '';
   const status = params.status ?? '';
   const page = Number(params.page) || 1;
+  const provider = params.provider ?? '';
+  const dateFrom = params.dateFrom ?? '';
+  const dateTo = params.dateTo ?? '';
   const sortBy = params.sortBy ?? '';
   const sortOrder = params.sortOrder ?? '';
 
   return (
     <div className="flex flex-col">
-      <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-border px-6">
-        <h1 className="text-[14px] font-semibold">유저 관리</h1>
-        <div className="flex items-center gap-3">
-          <UserFilter currentRole={role} currentStatus={status} />
+      <div className="flex min-h-[52px] shrink-0 items-center justify-between gap-3 border-b border-border px-6 py-2">
+        <h1 className="text-[14px] font-semibold shrink-0">유저 관리</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <UserFilter currentRole={role} currentStatus={status} currentProvider={provider} currentDateFrom={dateFrom} currentDateTo={dateTo} />
           <div className="w-64">
             <SearchInput placeholder="이메일 또는 이름으로 검색..." defaultValue={query} />
           </div>
@@ -36,7 +39,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 
       <div className="p-6">
         <Suspense fallback={<UserTableSkeleton />}>
-          <UsersContent query={query} role={role} status={status} page={page} sortBy={sortBy} sortOrder={sortOrder} />
+          <UsersContent query={query} role={role} status={status} provider={provider} dateFrom={dateFrom} dateTo={dateTo} page={page} sortBy={sortBy} sortOrder={sortOrder} />
         </Suspense>
       </div>
     </div>
@@ -44,12 +47,12 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 }
 
 async function UsersContent({
-  query, role, status, page, sortBy, sortOrder,
+  query, role, status, provider, dateFrom, dateTo, page, sortBy, sortOrder,
 }: {
-  query: string; role: string; status: string; page: number; sortBy: string; sortOrder: string;
+  query: string; role: string; status: string; provider: string; dateFrom: string; dateTo: string; page: number; sortBy: string; sortOrder: string;
 }) {
   const [{ users, total, totalPages }, admin] = await Promise.all([
-    getUsers({ query, role: role || undefined, status: status || undefined, page, sortBy: sortBy || undefined, sortOrder: sortOrder || undefined }),
+    getUsers({ query, role: role || undefined, status: status || undefined, provider: provider || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined, page, sortBy: sortBy || undefined, sortOrder: sortOrder || undefined }),
     requireAdmin(),
   ]);
 

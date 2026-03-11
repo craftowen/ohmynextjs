@@ -141,18 +141,24 @@ export async function getUsers(params: {
   query?: string;
   role?: string;
   status?: string;
+  provider?: string;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   perPage?: number;
   sortBy?: string;
   sortOrder?: string;
 }): Promise<UsersResponse> {
-  const { query, role, status, page = 1, perPage = 20, sortBy, sortOrder } = params;
+  const { query, role, status, provider, dateFrom, dateTo, page = 1, perPage = 20, sortBy, sortOrder } = params;
   const offset = (page - 1) * perPage;
 
   const conditions = [ne(users.status, 'deleted')];
   if (query) conditions.push(or(ilike(users.name, `%${query}%`), ilike(users.email, `%${query}%`))!);
   if (role) conditions.push(eq(users.role, role as 'user' | 'admin'));
   if (status) conditions.push(eq(users.status, status as 'active' | 'banned'));
+  if (provider) conditions.push(eq(users.provider, provider));
+  if (dateFrom) conditions.push(sql`${users.createdAt} >= ${new Date(dateFrom)}`);
+  if (dateTo) conditions.push(sql`${users.createdAt} < ${new Date(new Date(dateTo).getTime() + 86400000)}`);
   const whereClause = and(...conditions);
 
   const sortColumn = sortBy && sortBy in userSortColumns
