@@ -5,6 +5,7 @@ import { users, appSettings, auditLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from './auth';
+import { supabaseAdmin } from '@/lib/auth/admin';
 
 export type ActionResult = { success: true } | { success: false; error: string };
 
@@ -117,6 +118,34 @@ export async function restoreUser(userId: string): Promise<ActionResult> {
     return { success: true };
   } catch {
     return { success: false, error: '유저 복구에 실패했습니다.' };
+  }
+}
+
+export async function sendPasswordResetLink(userId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    const [target] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!target) return { success: false, error: '유저를 찾을 수 없습니다.' };
+
+    const { error } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email: target.email,
+    });
+
+    if (error) return { success: false, error: `비밀번호 초기화 링크 생성 실패: ${error.message}` };
+
+    await db.insert(auditLogs).values({
+      userId: admin.userId,
+      action: 'user.password_reset',
+      target: 'users',
+      targetId: userId,
+      details: { email: target.email },
+    });
+
+    return { success: true };
+  } catch {
+    return { success: false, error: '비밀번호 초기화에 실패했습니다.' };
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Pencil, Check, X } from 'lucide-react';
-import { updateUserRole, updateUserStatus, updateUserProfile, softDeleteUser, restoreUser } from '@/lib/admin/actions';
+import { updateUserRole, updateUserStatus, updateUserProfile, softDeleteUser, restoreUser, sendPasswordResetLink } from '@/lib/admin/actions';
 import { toast } from 'sonner';
 import { ConfirmDialog } from './confirm-dialog';
 
@@ -223,7 +223,29 @@ export function UserDetailCard({
           </select>
 
           {!isSelf && (
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {user.provider === 'email' && user.status !== 'deleted' && (
+                <button
+                  onClick={() => {
+                    setDialog({
+                      open: true,
+                      title: '비밀번호 초기화',
+                      description: `${user.email}에게 비밀번호 초기화 링크를 발송하시겠습니까?`,
+                      action: async () => {
+                        startTransition(async () => {
+                          const result = await sendPasswordResetLink(user.id);
+                          if (result.success) toast.success('비밀번호 초기화 링크가 발송되었습니다.');
+                          else toast.error(result.error);
+                        });
+                      },
+                    });
+                  }}
+                  disabled={isPending}
+                  className="rounded-md bg-blue-500/10 px-3 py-1 text-[12px] font-medium text-blue-600 hover:bg-blue-500/20 disabled:opacity-50"
+                >
+                  비밀번호 초기화
+                </button>
+              )}
               {user.status === 'deleted' ? (
                 <button
                   onClick={() => {
