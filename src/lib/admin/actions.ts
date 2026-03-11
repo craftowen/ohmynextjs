@@ -155,6 +155,33 @@ export async function impersonateUser(userId: string): Promise<{ success: true; 
   }
 }
 
+export async function forceSignOut(userId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    if (admin.userId === userId) {
+      return { success: false, error: '자기 자신을 강제 로그아웃할 수 없습니다.' };
+    }
+
+    const [target] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!target) return { success: false, error: '유저를 찾을 수 없습니다.' };
+
+    const { error } = await supabaseAdmin.auth.admin.signOut(userId);
+    if (error) return { success: false, error: `강제 로그아웃 실패: ${error.message}` };
+
+    await db.insert(auditLogs).values({
+      userId: admin.userId,
+      action: 'user.force_signout',
+      target: 'users',
+      targetId: userId,
+      details: { email: target.email },
+    });
+
+    return { success: true };
+  } catch {
+    return { success: false, error: '강제 로그아웃에 실패했습니다.' };
+  }
+}
+
 export async function createUser(data: {
   email: string;
   name?: string;
