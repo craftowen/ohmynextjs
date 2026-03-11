@@ -181,6 +181,7 @@ export function UserTable({ users, currentAdminId, sortBy = '', sortOrder = '' }
               <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">역할</th>
               <th className="px-4 py-2.5 text-left text-[12px] font-medium text-muted-foreground">상태</th>
               <SortHeader label="가입일" column="createdAt" currentSort={sortBy} currentOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="최종 로그인" column="lastSignInAt" currentSort={sortBy} currentOrder={sortOrder} onSort={handleSort} />
             </tr>
           </thead>
           <tbody>
@@ -230,6 +231,9 @@ export function UserTable({ users, currentAdminId, sortBy = '', sortOrder = '' }
                 </td>
                 <td className="px-4 py-2.5 text-muted-foreground">
                   {new Date(user.createdAt).toLocaleDateString('ko-KR')}
+                </td>
+                <td className="px-4 py-2.5 text-muted-foreground">
+                  {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString('ko-KR') : '-'}
                 </td>
               </tr>
             ))}
