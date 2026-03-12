@@ -12,14 +12,27 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  compress: true,
   experimental: {
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['lucide-react', 'drizzle-orm', '@supabase/ssr', '@supabase/supabase-js', 'sonner'],
+  },
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'k.kakaocdn.net' },
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+    ],
   },
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: securityHeaders,
+      },
+      {
+        source: '/manifest.webmanifest',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, immutable' }],
       },
     ];
   },

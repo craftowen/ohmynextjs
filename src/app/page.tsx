@@ -3,6 +3,8 @@ import { Zap, Shield, Database, CreditCard, Globe, Code, ArrowRight, Terminal, S
 import { ScrollReveal } from '@/components/landing/scroll-reveal';
 import { TypingEffect } from '@/components/landing/typing-effect';
 
+export const dynamic = 'force-static';
+
 const features = [
   {
     icon: Shield,

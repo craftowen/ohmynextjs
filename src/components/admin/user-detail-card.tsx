@@ -127,6 +127,10 @@ export function UserDetailCard({
                 <img
                   src={user.avatarUrl}
                   alt={user.name ?? user.email}
+                  width={56}
+                  height={56}
+                  loading="eager"
+                  decoding="async"
                   className="h-14 w-14 rounded-full object-cover"
                 />
               ) : (

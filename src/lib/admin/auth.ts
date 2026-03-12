@@ -1,9 +1,7 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/auth/server';
-import { db } from '@/lib/db/client';
-import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { getUserRole } from '@/lib/auth/role';
 
 export const requireAdmin = cache(async (): Promise<{ userId: string; email: string }> => {
   const supabase = await createClient();
@@ -14,13 +12,9 @@ export const requireAdmin = cache(async (): Promise<{ userId: string; email: str
     redirect('/auth/login');
   }
 
-  const [dbUser] = await db
-    .select({ role: users.role })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+  const role = await getUserRole(userId);
 
-  if (!dbUser || dbUser.role !== 'admin') {
+  if (role !== 'admin') {
     redirect('/dashboard');
   }
 

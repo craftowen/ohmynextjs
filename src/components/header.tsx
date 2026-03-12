@@ -1,9 +1,8 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
-import { Github } from 'lucide-react';
+import { GithubIcon } from 'lucide-react';
 import { createClient } from '@/lib/auth/server';
-import { db } from '@/lib/db/client';
-import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { getUserRole } from '@/lib/auth/role';
 import { ThemeToggle } from './theme-toggle';
 import { MobileNav } from './mobile-nav';
 import { SignOutButton } from './sign-out-button';
@@ -16,23 +15,21 @@ export interface NavItem {
 
 const defaultNavItems: NavItem[] = [];
 
-export async function Header({ navItems = defaultNavItems }: { navItems?: NavItem[] }) {
+async function getAuthState() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   const userId = !error ? data?.claims?.sub : null;
 
-  let isAdmin = false;
-  if (userId) {
-    const [dbUser] = await db
-      .select({ role: users.role })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    isAdmin = dbUser?.role === 'admin';
-  }
+  if (!userId) return { user: null, isAdmin: false };
 
-  const user = userId ? { email: data?.claims?.email } : null;
+  const role = await getUserRole(userId);
+  return {
+    user: { email: data?.claims?.email },
+    isAdmin: role === 'admin',
+  };
+}
 
+export function Header({ navItems = defaultNavItems }: { navItems?: NavItem[] }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 max-w-screen-xl items-center justify-between px-4">
@@ -58,48 +55,78 @@ export async function Header({ navItems = defaultNavItems }: { navItems?: NavIte
         </div>
 
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="hidden sm:inline-flex h-9 items-center justify-center rounded-md border border-input px-3 text-sm font-medium hover:bg-accent transition-colors"
-            >
-              관리자
-            </Link>
-          )}
-          <a
-            href="https://github.com/craftowen/ohmynextjs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-md border border-input hover:bg-accent transition-colors"
-            aria-label="GitHub"
-          >
-            <Github className="h-4 w-4" />
-          </a>
-          <ThemeToggle />
-          {user ? (
-            <>
-              <Link
-                href="/dashboard"
-                className="hidden sm:inline-flex h-9 items-center justify-center rounded-md border border-input px-3 text-sm font-medium hover:bg-accent transition-colors"
-              >
-                대시보드
-              </Link>
-              <SignOutButton
-                showIcon={false}
-                className="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-              />
-            </>
-          ) : (
-            <Link
-              href="/auth/login"
-              className="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              로그인
-            </Link>
-          )}
-          <MobileNav navItems={navItems} user={user} isAdmin={isAdmin} />
+          <Suspense fallback={<AuthFallback />}>
+            <AuthNav navItems={navItems} />
+          </Suspense>
         </div>
       </div>
     </header>
+  );
+}
+
+function AuthFallback() {
+  return (
+    <>
+      <a
+        href="https://github.com/craftowen/ohmynextjs"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-md border border-input hover:bg-accent transition-colors"
+        aria-label="GitHub"
+      >
+        <GithubIcon className="h-4 w-4" />
+      </a>
+      <ThemeToggle />
+      <div className="hidden sm:inline-flex h-9 w-20 animate-pulse rounded-md bg-muted" />
+    </>
+  );
+}
+
+async function AuthNav({ navItems }: { navItems: NavItem[] }) {
+  const { user, isAdmin } = await getAuthState();
+
+  return (
+    <>
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="hidden sm:inline-flex h-9 items-center justify-center rounded-md border border-input px-3 text-sm font-medium hover:bg-accent transition-colors"
+        >
+          관리자
+        </Link>
+      )}
+      <a
+        href="https://github.com/craftowen/ohmynextjs"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-md border border-input hover:bg-accent transition-colors"
+        aria-label="GitHub"
+      >
+        <GithubIcon className="h-4 w-4" />
+      </a>
+      <ThemeToggle />
+      {user ? (
+        <>
+          <Link
+            href="/dashboard"
+            className="hidden sm:inline-flex h-9 items-center justify-center rounded-md border border-input px-3 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            대시보드
+          </Link>
+          <SignOutButton
+            showIcon={false}
+            className="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          />
+        </>
+      ) : (
+        <Link
+          href="/auth/login"
+          className="hidden sm:inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          로그인
+        </Link>
+      )}
+      <MobileNav navItems={navItems} user={user} isAdmin={isAdmin} />
+    </>
   );
 }
